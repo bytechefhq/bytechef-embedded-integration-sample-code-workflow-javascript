@@ -1,0 +1,11 @@
+{
+  "name": "bytechef-embedded-integration-sample-code-workflow-javascript",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A sample ByteChef embedded code integration written in JavaScript.",
+  "main": "src/sample_code_integration.js",
+  "scripts": {
+    "check": "node scripts/check.js src/sample_code_integration.js message=hello"
+  },
+  "license": "MIT"
+}
