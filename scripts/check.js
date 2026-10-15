@@ -46,6 +46,29 @@ if (!Array.isArray(definition.workflows) || definition.workflows.length === 0) {
 
 const input = {};
 
+// Stands in for the platform: a component action returns a fixed sample, a trigger output and a request body are
+// fixed samples too, so every task can run without a server or a real connection.
+const sampleEmail = {from: 'ada@example.com', id: '18c2f0a1', subject: 'Welcome', threadId: '18c2f0a1'};
+
+const component = new Proxy({}, {
+    get: (target, componentName) => new Proxy({}, {
+        get: (actionTarget, actionName) => (actionInput, connectionName) => {
+            console.log('  ' + String(componentName) + '.' + String(actionName) + '(' + JSON.stringify(actionInput) +
+                ', ' + JSON.stringify(connectionName) + ')');
+
+            return {messages: [sampleEmail]};
+        },
+    }),
+});
+
+function triggerOutput(trigger) {
+    if (trigger.type.startsWith('request/')) {
+        return {body: {}};
+    }
+
+    return sampleEmail;
+}
+
 for (const inputArgument of inputArguments) {
     const separatorIndex = inputArgument.indexOf('=');
 
@@ -58,13 +81,17 @@ for (const workflow of definition.workflows) {
 
     const workflowInput = Object.assign({}, input);
 
+    for (const trigger of workflow.triggers || []) {
+        workflowInput[trigger.name] = triggerOutput(trigger);
+    }
+
     for (const task of workflow.tasks || []) {
         if (typeof task.name !== 'string' || typeof task.perform !== 'function') {
             fail('every task needs a name and a perform function');
         }
 
         const context = {
-            component: {},
+            component: component,
             connection: () => ({}),
             input: (name) => (name === undefined ? workflowInput : workflowInput[name]),
             log: (level, message) => console.log('  [' + level + '] ' + message),
