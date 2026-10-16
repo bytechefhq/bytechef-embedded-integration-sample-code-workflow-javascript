@@ -8,8 +8,6 @@
             name: "summarizeNewEmail",
             label: "Summarize New Email",
             description: "Runs for every new email in the connected user's inbox and logs who sent it.",
-            // A Gmail trigger on a Gmail integration runs on the connection the connected user created when they
-            // connected the integration - nothing to declare.
             triggers: [{name: "newEmail", type: "googleMail/v1/newEmailPolling", parameters: {format: "SIMPLE"}}],
             outputs: [{name: "summary", task: "summarize"}],
             tasks: [
@@ -33,7 +31,6 @@
             name: "fetchRecentEmails",
             label: "Fetch Recent Emails",
             description: "Returns the connected user's most recent emails, optionally only those from one sender.",
-            // awaitWorkflowAndRespond makes a call to the workflow return its outputs.
             triggers: [{name: "request", type: "request/v1/awaitWorkflowAndRespond"}],
             outputs: [{name: "emails", task: "fetchEmails"}],
             tasks: [
@@ -41,8 +38,6 @@
                     name: "fetchEmails",
                     label: "Fetch Emails",
                     description: "Searches the inbox with the Gmail Search Email action.",
-                    // A call to the integration's own component needs no declared connection: it runs on the connected
-                    // user's integration connection. Declare and name only connections to other components.
                     perform: function (context) {
                         const request = context.input()["request"] || {};
                         const body = request.body || {};
@@ -61,7 +56,6 @@
             name: "notifySlackOnNewEmail",
             label: "Notify Slack on New Email",
             description: "Posts every new email in the connected user's inbox to a Slack channel.",
-            // Takes its options from Slack's channel input, so the channel is picked from the workspace's channels.
             inputs: [
                 {
                     name: "channel", label: "Slack Channel", type: "STRING", required: true,
@@ -75,9 +69,6 @@
                     name: "postToSlack",
                     label: "Post to Slack",
                     description: "Posts the sender and subject with the Slack Send Channel Message action.",
-                    // Slack is not the integration's component, so the task declares its connection and
-                    // passes the name. An administrator picks the Slack connection when enabling the
-                    // workflow in the integration's instance configuration.
                     connections: [{componentName: "slack", name: "slack"}],
                     perform: function (context) {
                         const email = context.input("newEmail");
