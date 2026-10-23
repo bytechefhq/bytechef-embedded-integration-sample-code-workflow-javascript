@@ -56,7 +56,27 @@ npm run check
 ```
 
 Evaluates the file the same way the server does, checks its shape and runs each task once with a stub context. It
-needs only Node.js; there are no dependencies to install.
+needs only Node.js; the JavaScript file has no dependencies to install.
+
+## TypeScript
+
+[`src/sample_code_integration.ts`](src/sample_code_integration.ts) is the same integration written in TypeScript. It
+takes its types from [`@bytechef/workflow-api`](https://www.npmjs.com/package/@bytechef/workflow-api) through a
+`/// <reference types="@bytechef/workflow-api" />` directive and ends in `satisfies ByteChef.IntegrationDefinition`, so
+`context` is typed inside every `perform` and a missing `componentName` or a misspelled `perform` fails the build. The
+server runs only JavaScript, so compile the file and deploy the output:
+
+```bash
+npm install
+npm run check:ts
+```
+
+`check:ts` compiles the file to `dist/sample_code_integration.js` and runs the same check on it. Deploy
+`dist/sample_code_integration.js` in place of `src/sample_code_integration.js`; the directive and `satisfies` leave
+nothing behind, so the output is the same bare `({ ... })` expression. Don't `import` or `export` anything in the `.ts`
+file: either one turns it into a module, the output stops being a bare expression and the check fails. Both files
+describe the same `googleMail` version 1 integration, so deploying either one deploys a new version of the same code
+integration.
 
 ## Deploy
 
