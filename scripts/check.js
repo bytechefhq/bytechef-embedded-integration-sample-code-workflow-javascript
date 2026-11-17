@@ -47,7 +47,8 @@ if (!Array.isArray(definition.workflows) || definition.workflows.length === 0) {
 const input = {};
 
 // Stands in for the platform: a component action returns a fixed sample, a trigger output and a request body are
-// fixed samples too, so every task can run without a server or a real connection.
+// fixed samples too, and a declared connection has no parameters, so every task can run without a server or a real
+// connection.
 const sampleEmail = {from: 'ada@example.com', id: '18c2f0a1', subject: 'Welcome', threadId: '18c2f0a1'};
 
 const component = new Proxy({}, {
@@ -60,6 +61,16 @@ const component = new Proxy({}, {
         },
     }),
 });
+
+function taskConnection(task) {
+    const connections = task.connections || [];
+
+    const connectionNames = Array.isArray(connections)
+        ? connections.map((connection) => connection.name)
+        : Object.keys(connections);
+
+    return Object.fromEntries(connectionNames.map((connectionName) => [connectionName, {}]));
+}
 
 function triggerOutput(trigger) {
     if (trigger.type.startsWith('request/')) {
@@ -92,13 +103,14 @@ for (const workflow of definition.workflows) {
 
         const context = {
             component: component,
-            connection: () => ({}),
-            input: (name) => (name === undefined ? workflowInput : workflowInput[name]),
             log: (level, message) => console.log('  [' + level + '] ' + message),
-            parameters: () => task.parameters || {},
         };
 
-        const result = task.perform(context);
+        const taskInput = Object.assign({}, workflowInput);
+
+        const result = task.perform.length >= 3
+            ? task.perform(taskInput, taskConnection(task), context)
+            : task.perform(taskInput, context);
 
         console.log('  task ' + task.name + ' -> ' + JSON.stringify(result));
 

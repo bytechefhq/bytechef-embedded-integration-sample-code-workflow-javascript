@@ -1,11 +1,11 @@
 # bytechef-embedded-integration-sample-code-workflow-javascript
 
 A sample ByteChef **embedded code integration** written in JavaScript. The whole integration is one file,
-[`src/sample_code_integration.js`](src/sample_code_integration.js), and that file is what you deploy - there is no
-build step. The file is a single parenthesized object expression, `({ ... })`. The server evaluates it and reads the
-object's `componentName`, `componentVersion`, `description`, `version` and `workflows`, then calls each task's
-`perform(context)` when the workflow runs. Keep it a bare expression: a bundler or module wrapper hides the object
-from the server.
+[`src/sample_code_integration.js`](src/sample_code_integration.js), and that file is what you deploy - there is no build
+step. The file is a single parenthesized object expression, `({ ... })`. The server evaluates it and reads the object's
+`componentName`, `componentVersion`, `description`, `version` and `workflows`, then calls each task's
+`perform(input, context)` when the workflow runs. Keep it a bare expression: a bundler or module wrapper hides the
+object from the server.
 
 A code integration is keyed by the component it integrates, and that component must exist on the server. This sample
 uses the built-in Gmail component, `googleMail` version 1, so connecting the integration means connecting a Gmail
@@ -24,9 +24,11 @@ account. It has three workflows:
   that connection when enabling the workflow in the integration's instance configuration; until one is picked the
   workflow cannot be enabled, and the channel list stays empty.
 
-Inside `perform`, `context.input()` returns the workflow inputs, the trigger output (under the trigger's name) and the
-output of every task that already ran (under the task's name); `context.input("newEmail")` returns one of them, and
-`context.log(level, message)` writes to the execution log.
+A task's `perform` takes `(input, context)`. `input` holds the workflow inputs, the trigger output (under the trigger's
+name) and the output of every task that already ran (under the task's name), so `input.newEmail` returns one of them,
+and `context.log(level, message)` writes to the execution log. A task that reads its connections' parameters, to build a
+request itself, takes `perform(input, connection, context)` instead: `connection` maps each declared connection's name
+to that connection's parameters, credentials included.
 
 ### Connections
 
@@ -34,7 +36,7 @@ A task calls an action of the integration's own component - `googleMail` here - 
 runs on the connected user's integration connection, which ByteChef binds when the workflow runs:
 
 ```javascript
-perform: function (context) {
+perform: function (input, context) {
     return context.component.googleMail.searchEmail({maxResults: 10});
 }
 ```
@@ -44,7 +46,7 @@ chooses it in the integration's instance configuration, and it is the same for e
 
 ```javascript
 connections: [{componentName: "slack", name: "slack"}],
-perform: function (context) {
+perform: function (input, context) {
     return context.component.slack.sendChannelMessage({channel: "C0123456", text: "New email"}, "slack");
 }
 ```
@@ -63,8 +65,9 @@ needs only Node.js; the JavaScript file has no dependencies to install.
 [`src/sample_code_integration.ts`](src/sample_code_integration.ts) is the same integration written in TypeScript. It
 takes its types from [`@bytechef/workflow-api`](https://www.npmjs.com/package/@bytechef/workflow-api) through a
 `/// <reference types="@bytechef/workflow-api" />` directive and ends in `satisfies ByteChef.IntegrationDefinition`, so
-`context` is typed inside every `perform` and a missing `componentName` or a misspelled `perform` fails the build. The
-server runs only JavaScript, so compile the file and deploy the output:
+a missing `componentName` or a misspelled `perform` fails the build. TypeScript does not infer the parameter types of a
+two-parameter `perform`, so each one annotates `input` and `context` with `ByteChef.TaskInput` and
+`ByteChef.TaskContext`. The server runs only JavaScript, so compile the file and deploy the output:
 
 ```bash
 npm install

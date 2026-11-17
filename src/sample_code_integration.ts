@@ -28,8 +28,8 @@ interface FetchRecentEmailsRequest {
                     name: "summarize",
                     label: "Summarize",
                     description: "Builds a one-line summary of the new email.",
-                    perform: (context) => {
-                        const email = context.input("newEmail") as Email;
+                    perform: (input: ByteChef.TaskInput, context: ByteChef.TaskContext) => {
+                        const email = input.newEmail as Email;
 
                         const summary = "New email from " + email.from + ": " + email.subject;
 
@@ -51,8 +51,8 @@ interface FetchRecentEmailsRequest {
                     name: "fetchEmails",
                     label: "Fetch Emails",
                     description: "Searches the inbox with the Gmail Search Email action.",
-                    perform: (context) => {
-                        const request = (context.input()["request"] || {}) as FetchRecentEmailsRequest;
+                    perform: (input: ByteChef.TaskInput, context: ByteChef.TaskContext) => {
+                        const request = (input.request || {}) as FetchRecentEmailsRequest;
                         const body = request.body || {};
 
                         const result: {messages?: Email[]} = context.component.googleMail.searchEmail(
@@ -83,13 +83,13 @@ interface FetchRecentEmailsRequest {
                     label: "Post to Slack",
                     description: "Posts the sender and subject with the Slack Send Channel Message action.",
                     connections: [{componentName: "slack", name: "slack"}],
-                    perform: (context) => {
-                        const email = context.input("newEmail") as Email;
+                    perform: (input: ByteChef.TaskInput, context: ByteChef.TaskContext) => {
+                        const email = input.newEmail as Email;
 
                         const text = "New email from " + email.from + ": " + email.subject;
 
                         const message = context.component.slack.sendChannelMessage(
-                            {channel: context.input("channel"), text: text}, "slack");
+                            {channel: input.channel, text: text}, "slack");
 
                         context.log("info", "Posted to Slack: " + text);
 
