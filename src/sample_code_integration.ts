@@ -97,6 +97,32 @@ interface FetchRecentEmailsRequest {
                     }
                 }
             ]
+        },
+        {
+            name: "logNewEmailSender",
+            label: "Log New Email Sender",
+            description: "Logs the sender of every new email in the connected user's inbox with the Logger component.",
+            triggers: [{name: "newEmail", type: "googleMail/v1/newEmailPolling", parameters: {format: "SIMPLE"}}],
+            tasks: [
+                {
+                    name: "describe",
+                    label: "Describe",
+                    perform: (input: ByteChef.TaskInput, context: ByteChef.TaskContext) => {
+                        const email = input.newEmail as Email;
+
+                        context.log("info", "Describing email " + email.id);
+
+                        return {sender: email.from, subject: email.subject};
+                    }
+                },
+                {
+                    name: "logSender",
+                    label: "Log Sender",
+                    description: "Writes the sender and subject to the execution log with the Logger Info action.",
+                    type: "logger/v1/info",
+                    parameters: {text: "New email from ${describe.sender}: ${describe.subject}"}
+                }
+            ]
         }
     ]
 }) satisfies ByteChef.IntegrationDefinition;

@@ -73,11 +73,72 @@ function taskConnection(task) {
 }
 
 function triggerOutput(trigger) {
-    if (trigger.type.startsWith('request/')) {
+    if (trigger.type.startsWith('request/') || trigger.type.startsWith('apiPlatform/')) {
         return {body: {}};
     }
 
     return sampleEmail;
+}
+
+const componentTaskTypePattern = /^[^/\s]+\/v[1-9]\d{0,8}\/[^/\s]+$/;
+
+function evaluate(expression, values) {
+    let value = values;
+
+    for (const segment of expression.match(/[^.[\]]+/g) || []) {
+        if (value === null || value === undefined) {
+            return undefined;
+        }
+
+        value = value[segment];
+    }
+
+    return value;
+}
+
+function jsonText(value) {
+    return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function resolveParameter(parameter, values) {
+    if (typeof parameter === 'string') {
+        const wholeExpression = parameter.match(/^\$\{([^}]+)\}$/);
+
+        if (wholeExpression) {
+            return evaluate(wholeExpression[1], values);
+        }
+
+        return parameter.replace(/\$\{([^}]+)\}/g, (match, expression) => jsonText(evaluate(expression, values)));
+    }
+
+    if (Array.isArray(parameter)) {
+        return parameter.map((item) => resolveParameter(item, values));
+    }
+
+    if (parameter !== null && typeof parameter === 'object') {
+        return Object.fromEntries(
+            Object.entries(parameter).map(([key, value]) => [key, resolveParameter(value, values)]));
+    }
+
+    return parameter;
+}
+
+function runComponentTask(task, values) {
+    if (!componentTaskTypePattern.test(task.type)) {
+        fail('task ' + task.name + ' has type ' + task.type +
+            '; a component task type is <component>/v<version>/<action>');
+    }
+
+    if ('perform' in task || 'connections' in task) {
+        fail('task ' + task.name + ' runs component action ' + task.type +
+            ', so it cannot declare perform or connections');
+    }
+
+    const parameters = resolveParameter(task.parameters || {}, values);
+
+    console.log('  ' + task.type + '(' + JSON.stringify(parameters) + ')');
+
+    return parameters;
 }
 
 for (const inputArgument of inputArguments) {
@@ -97,8 +158,18 @@ for (const workflow of definition.workflows) {
     }
 
     for (const task of workflow.tasks || []) {
+        if (typeof task.name === 'string' && typeof task.type === 'string') {
+            const componentTaskResult = runComponentTask(task, workflowInput);
+
+            console.log('  task ' + task.name + ' -> ' + JSON.stringify(componentTaskResult));
+
+            workflowInput[task.name] = componentTaskResult;
+
+            continue;
+        }
+
         if (typeof task.name !== 'string' || typeof task.perform !== 'function') {
-            fail('every task needs a name and a perform function');
+            fail('every task needs a name and either a perform function or a component action type');
         }
 
         const context = {
