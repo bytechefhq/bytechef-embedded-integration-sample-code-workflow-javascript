@@ -9,7 +9,7 @@ object from the server.
 
 A code integration is keyed by the component it integrates, and that component must exist on the server. This sample
 uses the built-in Gmail component, `googleMail` version 1, so connecting the integration means connecting a Gmail
-account. It has three workflows:
+account. It has four workflows:
 
 - `summarizeNewEmail` starts with the Gmail **New Email** polling trigger (`googleMail/v1/newEmailPolling`). It runs once
   for every new email and its `summarize` task returns a one-line summary as the `summary` output. A Gmail trigger on a
@@ -29,6 +29,29 @@ name) and the output of every task that already ran (under the task's name), so 
 and `context.log(level, message)` writes to the execution log. A task that reads its connections' parameters, to build a
 request itself, takes `perform(input, connection, context)` instead: `connection` maps each declared connection's name
 to that connection's parameters, credentials included.
+- `logNewEmailSender`, started by the Gmail **New Email** trigger. Its `describe` task picks the sender and
+  subject out of the new email, and its `logSender` task is a component task that runs the Logger **Info** action with
+  them, so the execution log shows one line per email.
+
+### Component tasks
+
+A task that only runs a component action, with no logic of its own, can name the action by type instead of declaring
+a `perform` function, the same way a trigger names its component:
+
+```javascript
+{
+    name: "logSender",
+    type: "logger/v1/info",
+    parameters: {text: "New email from ${describe.sender}: ${describe.subject}"}
+}
+```
+
+The type is `<component>/v<version>/<action>`, and `parameters` holds the action's inputs. A `${...}` expression is
+evaluated when the task runs: `"${describe}"` is the whole output of the `describe` task, `"${describe.sender}"` one of
+its fields, and text such as `"New email from ${describe.sender}: ${describe.subject}"` becomes a string with the
+values filled in. A component task declares no connections: when its action needs one, it is bound like the
+same task's in a visual workflow. Importing the integration fails when the component, its version or the action does not exist
+on the server.
 
 ### Connections
 
@@ -57,7 +80,8 @@ perform: function (input, context) {
 npm run check
 ```
 
-Evaluates the file the same way the server does, checks its shape and runs each task once with a stub context. It
+Evaluates the file the same way the server does, checks its shape and runs each task once with a stub context. A component task prints its action type and its
+parameters with the `${...}` expressions filled in. It
 needs only Node.js; the JavaScript file has no dependencies to install.
 
 ## TypeScript
